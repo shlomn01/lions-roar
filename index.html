@@ -5,15 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>שאגת הארי</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-NN5LZH1X3G"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-NN5LZH1X3G');
+  window.GAME_NAME = 'lions-roar';
+</script>
 <meta property="og:title" content="שאגת הארי - Desert Combat Game">
 <meta property="og:description" content="משחק קרב מדברי עם 3 שלבים - טוסו מעל המדבר, השמידו אויבים וצברו ניקוד!">
-<meta property="og:image" content="https://shlomn01.github.io/lions-roar/og-image.png">
+<meta property="og:image" content="https://lemons-gaming.github.io/lions-roar/og-image.png">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://shlomn01.github.io/lions-roar/">
+<meta property="og:url" content="https://lemons-gaming.github.io/lions-roar/">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="שאגת הארי - Desert Combat Game">
 <meta name="twitter:description" content="משחק קרב מדברי עם 3 שלבים - טוסו מעל המדבר, השמידו אויבים וצברו ניקוד!">
-<meta name="twitter:image" content="https://shlomn01.github.io/lions-roar/og-image.png">
+<meta name="twitter:image" content="https://lemons-gaming.github.io/lions-roar/og-image.png">
 <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
@@ -1312,6 +1320,7 @@ function switchZone(idx){
   zoneIdx=idx;
   gObjs=[];eBullets=[];eMiss=[];ePlanes=[];
   sfx.zoneChange();addShk(12);
+  gtag('event', 'zone_reached', { game_name: window.GAME_NAME, zone: idx + 1, score: score });
 }
 function drawTransition(){
   if(transState==='none')return;
@@ -1385,6 +1394,7 @@ function initGame(){
   score=0;lives=3;spd=1.8;frames=0;combo=0;comboT=0;shake=0;bgOff=0;sunA=0;waveT=0;
   zoneIdx=0;transState='none';transAlpha=0;gameStartT=performance.now();
   gameState=S_PLAY;menuScreen.classList.add('hidden');
+  gtag('event', 'game_start', { game_name: window.GAME_NAME });
   gameOverText.classList.add('hidden');finalScoreText.classList.add('hidden');
   nameInputWrap.classList.add('hidden');
   lbWrap.classList.add('hidden');
@@ -1394,6 +1404,8 @@ function doGameOver(){
   gameState=S_OVER;menuScreen.classList.remove('hidden');
   gameOverText.classList.remove('hidden');finalScoreText.classList.remove('hidden');
   finalScoreVal.innerText=score;startBtn.innerText='נסה שוב';
+  const timePlayed=Math.round((performance.now()-(gameStartT||performance.now()))/1000);
+  gtag('event', 'game_over', { game_name: window.GAME_NAME, score: score, zone_reached: zoneIdx + 1, time_played_seconds: timePlayed });
   // Show name input for leaderboard
   lastSavedScore=-1;
   nameInputWrap.classList.remove('hidden');

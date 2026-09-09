@@ -294,8 +294,30 @@ let gameState=S_MENU;
 // ── Cloud Leaderboard (Firebase REST API) ──
 const FB_URL = 'https://lion-roar-3c5ab-default-rtdb.firebaseio.com';
 const LB_KEY = 'oilbomber_leaderboard';
+const LB_MAX_SCORE = 10000000;
+
+// Every leaderboard entry is untrusted input: the Firebase DB is open for
+// writes, and localStorage can be edited from the console. Normalise each
+// entry on the way in; drop the ones that fail instead of patching them up.
+function sanitizeEntry(raw){
+  if(!raw || typeof raw !== 'object') return null;
+  let name = String(raw.name == null ? '' : raw.name).trim().slice(0,24);
+  if(!name) name = 'טייס אלמוני';
+  const score = Number(raw.score);
+  if(!Number.isFinite(score)) return null;
+  const date = Number(raw.date);
+  return {
+    name: name,
+    score: Math.min(LB_MAX_SCORE, Math.max(0, Math.round(score))),
+    date: Number.isFinite(date) ? date : Date.now()
+  };
+}
+function sanitizeEntries(list){
+  return (Array.isArray(list) ? list : []).map(sanitizeEntry).filter(Boolean);
+}
+
 let cachedLB = [];
-try { cachedLB = JSON.parse(localStorage.getItem(LB_KEY)) || []; } catch(e) {}
+try { cachedLB = sanitizeEntries(JSON.parse(localStorage.getItem(LB_KEY))); } catch(e) {}
 
 function getLB(){ return cachedLB; }
 
@@ -309,7 +331,7 @@ function loadLBFromCloud(){
     .then(r => r.json())
     .then(data => {
       if(!data) return cachedLB;
-      const entries = Object.values(data);
+      const entries = sanitizeEntries(Object.values(data));
       entries.sort((a,b) => b.score - a.score);
       if(entries.length > 10) entries.length = 10;
       cachedLB = entries;
@@ -323,7 +345,8 @@ function loadLBFromCloud(){
 loadLBFromCloud().then(() => { if(gameState === S_OVER) renderLB(); });
 
 function addScore(name,sc){
-  const entry = {name:(name.trim()||'טייס אלמוני'), score:sc, date:Date.now()};
+  const entry = sanitizeEntry({name:name, score:sc, date:Date.now()});
+  if(!entry) return cachedLB;
   // Push to cloud
   if(!FB_URL.includes('PUT-YOUR')){
     fetch(FB_URL + '/leaderboard.json', {
@@ -343,19 +366,28 @@ function renderLB(highlightScore){
   const lb=getLB();lbBody.innerHTML='';
   if(lb.length===0){lbEmpty.classList.remove('hidden');return;}
   lbEmpty.classList.add('hidden');
+  const cell=(tag,cls,text)=>{
+    const c=document.createElement(tag);
+    if(cls)c.className=cls;
+    c.textContent=text;
+    return c;
+  };
   // Header row
   const hr=document.createElement('tr');
-  hr.innerHTML='<th class="lb-rank">#</th><th>שם</th><th class="lb-score">ניקוד</th>';
+  hr.appendChild(cell('th','lb-rank','#'));
+  hr.appendChild(cell('th','','שם'));
+  hr.appendChild(cell('th','lb-score','ניקוד'));
   lbBody.appendChild(hr);
   lb.forEach((e,i)=>{
     const tr=document.createElement('tr');
     if(highlightScore&&e.score===highlightScore&&e.date===highlightScore._d)tr.classList.add('lb-me');
-    const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1);
-    tr.innerHTML=`<td class="lb-rank">${medal}</td><td>${esc(e.name)}</td><td class="lb-score">${e.score.toLocaleString()}</td>`;
+    const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':String(i+1);
+    tr.appendChild(cell('td','lb-rank',medal));
+    tr.appendChild(cell('td','',e.name));
+    tr.appendChild(cell('td','lb-score',e.score.toLocaleString()));
     lbBody.appendChild(tr);
   });
 }
-function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 function saveCurrentScore(){
   if(lastSavedScore===score)return;
   lastSavedScore=score;
